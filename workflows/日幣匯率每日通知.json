@@ -1,0 +1,220 @@
+{
+  "name": "日幣匯率每日通知",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "d436b497-5de5-4106-b502-bc910eaf0ebb",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "url": "https://open.er-api.com/v6/latest/JPY",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        224,
+        96
+      ],
+      "id": "5c497176-1697-478c-809b-e906855c1246",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "4103cbcb-e43a-426c-8917-9a93ad88c6f3",
+              "name": "jpy_to_twd",
+              "value": "={{ $json.rates.TWD }}",
+              "type": "number"
+            },
+            {
+              "id": "63363ee6-f775-4068-99e8-433dc6ea3fab",
+              "name": "twd_per_10000_jpy",
+              "value": "={{ Math.round($json.rates.TWD * 10000) }}",
+              "type": "number"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        448,
+        96
+      ],
+      "id": "71e50bb9-2ddc-477f-8ed0-b5f1ba13caf8",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=今日匯率：1 日圓 = {{ $json.jpy_to_twd }} 台幣，1 萬日圓約 {{ $json.twd_per_10000_jpy }} 台幣。\n請用繁體中文寫一則 50 字以內的匯率通知訊息，給想從日本購買一番賞的玩家參考，語氣輕鬆。只陳述數字，不要評論匯率高低或是否划算。",
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        672,
+        96
+      ],
+      "id": "fd464f46-3dbb-4d4b-8c17-b1356845f9bc",
+      "name": "Basic LLM Chain"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.2,
+      "position": [
+        752,
+        336
+      ],
+      "id": "d761eb5d-5ff8-4cea-a12b-cea08f6b094a",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "RvnQHVn4CEfoHQQl",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "authentication": "webhook",
+        "content": "={{ $json.text }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.discord",
+      "typeVersion": 2,
+      "position": [
+        1024,
+        96
+      ],
+      "id": "c0f1d1b0-a0cd-4464-b2bc-a75c4e2a0dfc",
+      "name": "Discord",
+      "webhookId": "bde71192-eb6e-4d9f-b358-b7b7b3da78d7",
+      "credentials": {
+        "discordWebhookApi": {
+          "id": "NcYJNV9AMzJwwrvo",
+          "name": "Discord Webhook account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 21
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        0,
+        192
+      ],
+      "id": "e6a89173-041b-47e9-9978-9fca32d2550b",
+      "name": "Schedule Trigger"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Basic LLM Chain": {
+      "main": [
+        [
+          {
+            "node": "Discord",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "timeSavedMode": "fixed",
+    "timezone": "Asia/Taipei",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "versionId": "672a0e07-b5b1-4644-84fd-c745de9f9339",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "8315816a522f269e5440f9939e0a9e28f55e8120878d0c4dc97cfb6b6b370852"
+  },
+  "nodeGroups": [],
+  "id": "6kJXo0VxbzH03ldW",
+  "tags": []
+}
